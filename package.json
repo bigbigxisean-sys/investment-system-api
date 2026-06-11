@@ -1,7 +1,7 @@
 {
   "name": "investment-system-api",
   "version": "1.0.0",
-  "description": "投资管理系统后端 API",
+  "description": "\u6295\u8d44\u7ba1\u7406\u7cfb\u7edf\u540e\u7aef API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,9 +9,9 @@
     "postinstall": "npm rebuild better-sqlite3"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "pg": "^8.13.0",
     "uuid": "^10.0.0"
   }
 }

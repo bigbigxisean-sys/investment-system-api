@@ -1,30 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — allow GitHub Pages + dev origins
-const ALLOWED_ORIGINS = [
-  'https://bigbigxisean-sys.github.io',
-  'http://localhost:8080',
-  'http://127.0.0.1:8080',
-  'http://192.168.0.102:8080'
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests from GitHub Pages, local dev, or no origin
-    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.includes('github.io')) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all for production
-    }
-  },
-  credentials: true
-}));
-
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
 // Routes
@@ -34,17 +14,22 @@ const invRoutes = require('./routes/investments');
 app.use('/api/auth', authRoutes);
 app.use('/api/investments', invRoutes);
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ ok: false, error: '服务器内部错误' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Investment System API running on port ${PORT}`);
+// Init DB then start
+const { initDb } = require('./db');
+initDb().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Investment System API running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to init database:', err);
+  process.exit(1);
 });

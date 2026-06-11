@@ -1,72 +1,75 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const DATABASE_URL = process.env.DATABASE_URL || 
+  'postgresql://postgres:021985O0o---!@db.qvvoenbpbizimsrozhgy.supabase.co:5432/postgres';
 
-const DB_PATH = path.join(DATA_DIR, 'investment.db');
-const db = new Database(DB_PATH);
+const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
-// Enable WAL mode for better concurrent access
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+async function initDb() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS investments (
+        id SERIAL PRIMARY KEY,
+        "investorName" TEXT NOT NULL,
+        "investmentDate" TEXT NOT NULL,
+        "maturityDate" TEXT NOT NULL,
+        amount REAL NOT NULL,
+        rate REAL DEFAULT 12,
+        "reinvestType" TEXT DEFAULT 'none',
+        commission REAL DEFAULT 5,
+        notes TEXT DEFAULT '',
+        status TEXT DEFAULT 'active',
+        "redeemedDate" TEXT,
+        "createdAt" TEXT DEFAULT (to_char(now(), 'YYYY-MM-DD'))
+      );
 
-// ── Schema ──
-db.exec(`
-  CREATE TABLE IF NOT EXISTS investments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    investorName TEXT NOT NULL,
-    investmentDate TEXT NOT NULL,
-    maturityDate TEXT NOT NULL,
-    amount REAL NOT NULL,
-    rate REAL NOT NULL DEFAULT 12,
-    reinvestType TEXT DEFAULT 'none',
-    commission REAL DEFAULT 5,
-    notes TEXT DEFAULT '',
-    status TEXT DEFAULT 'active',
-    redeemedDate TEXT,
-    createdAt TEXT DEFAULT (date('now'))
-  );
+      CREATE TABLE IF NOT EXISTS returns (
+        id SERIAL PRIMARY KEY,
+        "investId" INTEGER NOT NULL REFERENCES investments(id),
+        date TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('interest_earned','commission')),
+        amount REAL NOT NULL,
+        note TEXT DEFAULT ''
+      );
 
-  CREATE TABLE IF NOT EXISTS returns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    investId INTEGER NOT NULL,
-    date TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('interest_earned','commission')),
-    amount REAL NOT NULL,
-    note TEXT DEFAULT '',
-    FOREIGN KEY (investId) REFERENCES investments(id)
-  );
+      CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'investor',
+        name TEXT,
+        "viewAll" INTEGER DEFAULT 0
+      );
 
-  CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'investor',
-    name TEXT,
-    viewAll INTEGER DEFAULT 0
-  );
+      CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        username TEXT NOT NULL REFERENCES users(username),
+        "createdAt" TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS')
+      );
+    `);
 
-  CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
-    createdAt TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (username) REFERENCES users(username)
-  );
-`);
-
-// ── Seed default users if empty ──
-const userCount = db.prepare('SELECT COUNT(*) as cnt FROM users').get().cnt;
-if (userCount === 0) {
-  const insertUser = db.prepare(
-    'INSERT INTO users (username, password, role, name, viewAll) VALUES (?, ?, ?, ?, ?)'
-  );
-  insertUser.run('xiaoting', '860601', 'broker', '晓婷', 0);
-  insertUser.run('daishenglan', 'initial', 'viewer', '戴胜兰', 1);
-  insertUser.run('wangxi', 'initial', 'investor', '王习', 0);
-} else {
-  // Update existing user names if needed
-  db.prepare("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND name != '王习'").run();
+    // Seed default users if empty
+    const { rowCount } = await client.query('SELECT COUNT(*) as cnt FROM users');
+    if (parseInt(rowCount) === 0) {
+      await client.query(
+        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
+        ['xiaoting', '860601', 'broker', '晓婷', 0]
+      );
+      await client.query(
+        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
+        ['daishenglan', 'initial', 'viewer', '戴胜兰', 1]
+      );
+      await client.query(
+        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
+        ['wangxi', 'initial', 'investor', '王习', 0]
+      );
+    } else {
+      // Fix wangxi name if needed
+      await client.query("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND name != '王习'");
+    }
+  } finally {
+    client.release();
+  }
 }
 
-module.exports = db;
+module.exports = { pool, initDb };
