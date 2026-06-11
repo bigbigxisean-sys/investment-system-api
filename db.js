@@ -63,7 +63,10 @@ if (userCount === 0) {
   );
   insertUser.run('xiaoting', '860601', 'broker', '晓婷', 0);
   insertUser.run('daishenglan', 'initial', 'viewer', '戴胜兰', 1);
-  insertUser.run('wangxi', 'initial', 'investor', '王希', 0);
+  insertUser.run('wangxi', 'initial', 'investor', '王习', 0);
+} else {
+  // Update existing user names if needed
+  db.prepare("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND name != '王习'").run();
 }
 
 module.exports = db;
