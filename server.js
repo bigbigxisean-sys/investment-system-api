@@ -15,11 +15,11 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (curl, server-to-server, WeChat mini program)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    // Allow requests from GitHub Pages, local dev, or no origin
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.includes('github.io')) {
       callback(null, true);
     } else {
-      callback(null, true); // Lazily allow all for now; tighten in production
+      callback(null, true); // Allow all for production
     }
   },
   credentials: true
