@@ -1,10 +1,9 @@
 const { Pool } = require('pg');
 
 const p_user = "postgres";
-const p_host = "db.qvvoenbpbizimsrozhgy.supabase.co";
+const p_host = "aws-0-ap-southeast-1.pooler.supabase.com";
 const p_port = "5432";
 const p_db = "postgres";
-const p_ref = "qvvoenbpbizimsrozhgy";
 const p_pass = "021985O0o---!";
 
 const DATABASE_URL = "postgresql://" + p_user + "." + p_ref + ":" + p_pass + "@" + p_host + ":" + p_port + "/" + p_db;
