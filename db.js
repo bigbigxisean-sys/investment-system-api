@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-const DATABASE_URL = "postgresql://neondb_owner:***@ep-hidden-poetry-airdz14o.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
+const DATABASE_URL = "postgresql://neondb_owner:npg_Qi82VLNtyKPv@ep-hidden-poetry-airdz14o.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 
