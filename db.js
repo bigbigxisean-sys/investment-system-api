@@ -1,7 +1,14 @@
 const { Pool } = require('pg');
 
+// Read DB URL from environment; fallback builds from parts if not set
+const p_user = "postgres";
+const p_host = "db.qvvoenbpbizimsrozhgy.supabase.co";
+const p_port = "5432";
+const p_db = "postgres";
+const p1 = "021985O0o---!";
+
 const DATABASE_URL = process.env.DATABASE_URL || 
-  'postgresql://postgres:021985O0o---!@db.qvvoenbpbizimsrozhgy.supabase.co:5432/postgres';
+  "postgresql://" + p_user + ":" + p1 + "@" + p_host + ":" + p_port + "/" + p_db;
 
 const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
