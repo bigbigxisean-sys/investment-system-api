@@ -1,14 +1,12 @@
 const { Pool } = require('pg');
 
-// Read DB URL from environment; fallback builds from parts if not set
 const p_user = "postgres";
 const p_host = "db.qvvoenbpbizimsrozhgy.supabase.co";
 const p_port = "5432";
 const p_db = "postgres";
-const p1 = "021985O0o---!";
+const p_pass = "021985O0o---!";
 
-const DATABASE_URL = process.env.DATABASE_URL || 
-  "postgresql://" + p_user + ":" + p1 + "@" + p_host + ":" + p_port + "/" + p_db;
+const DATABASE_URL = "postgresql://" + p_user + ":" + p_pass + "@" + p_host + ":" + p_port + "/" + p_db;
 
 const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
@@ -55,7 +53,6 @@ async function initDb() {
       );
     `);
 
-    // Seed default users if empty
     const { rowCount } = await client.query('SELECT COUNT(*) as cnt FROM users');
     if (parseInt(rowCount) === 0) {
       await client.query(
@@ -71,7 +68,6 @@ async function initDb() {
         ['wangxi', 'initial', 'investor', '王习', 0]
       );
     } else {
-      // Fix wangxi name if needed
       await client.query("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND name != '王习'");
     }
   } finally {
