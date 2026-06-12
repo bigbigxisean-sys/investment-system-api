@@ -1,20 +1,8 @@
 const { Pool } = require('pg');
 
-const p_user = "postgres";
-const p_host = "aws-0-ap-southeast-1.pooler.supabase.com";
-const p_port = 6543;
-const p_db = "postgres";
-const p_ref = "qvvoenbpbizimsrozhgy";
-const p_pass = "021985O0o---!";
+const DATABASE_URL = "postgresql://neondb_owner:***@ep-hidden-poetry-airdz14o.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
 
-const pool = new Pool({
-  host: p_host,
-  port: p_port,
-  database: p_db,
-  user: p_user + "." + p_ref,
-  password: p_pass,
-  ssl: { rejectUnauthorized: false }
-});
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 async function initDb() {
   const client = await pool.connect();
