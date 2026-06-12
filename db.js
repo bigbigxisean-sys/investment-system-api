@@ -2,14 +2,19 @@ const { Pool } = require('pg');
 
 const p_user = "postgres";
 const p_host = "aws-0-ap-southeast-1.pooler.supabase.com";
-const p_port = "6543";
+const p_port = 6543;
 const p_db = "postgres";
 const p_ref = "qvvoenbpbizimsrozhgy";
 const p_pass = "021985O0o---!";
 
-const DATABASE_URL = "postgresql://" + p_user + "." + p_ref + ":" + p_pass + "@" + p_host + ":" + p_port + "/" + p_db;
-
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({
+  host: p_host,
+  port: p_port,
+  database: p_db,
+  user: p_user + "." + p_ref,
+  password: p_pass,
+  ssl: { rejectUnauthorized: false }
+});
 
 async function initDb() {
   const client = await pool.connect();
@@ -29,7 +34,6 @@ async function initDb() {
         "redeemedDate" TEXT,
         "createdAt" TEXT DEFAULT (to_char(now(), 'YYYY-MM-DD'))
       );
-
       CREATE TABLE IF NOT EXISTS returns (
         id SERIAL PRIMARY KEY,
         "investId" INTEGER NOT NULL REFERENCES investments(id),
@@ -38,7 +42,6 @@ async function initDb() {
         amount REAL NOT NULL,
         note TEXT DEFAULT ''
       );
-
       CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
         password TEXT NOT NULL,
@@ -46,28 +49,17 @@ async function initDb() {
         name TEXT,
         "viewAll" INTEGER DEFAULT 0
       );
-
       CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
         username TEXT NOT NULL REFERENCES users(username),
         "createdAt" TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS')
       );
     `);
-
     const { rowCount } = await client.query('SELECT COUNT(*) as cnt FROM users');
     if (parseInt(rowCount) === 0) {
-      await client.query(
-        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
-        ['xiaoting', '860601', 'broker', '晓婷', 0]
-      );
-      await client.query(
-        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
-        ['daishenglan', 'initial', 'viewer', '戴胜兰', 1]
-      );
-      await client.query(
-        'INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1, $2, $3, $4, $5)',
-        ['wangxi', 'initial', 'investor', '王习', 0]
-      );
+      await client.query('INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1,$2,$3,$4,$5)', ['xiaoting','860601','broker','晓婷',0]);
+      await client.query('INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1,$2,$3,$4,$5)', ['daishenglan','initial','viewer','戴胜兰',1]);
+      await client.query('INSERT INTO users (username, password, role, name, "viewAll") VALUES ($1,$2,$3,$4,$5)', ['wangxi','initial','investor','王习',0]);
     } else {
       await client.query("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND name != '王习'");
     }
@@ -75,5 +67,4 @@ async function initDb() {
     client.release();
   }
 }
-
 module.exports = { pool, initDb };
