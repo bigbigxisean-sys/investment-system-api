@@ -78,6 +78,36 @@ router.post('/', async (req, res) => {
     if (!d.investorName || !d.investmentDate || !d.maturityDate || !d.amount) {
       return res.json({ ok: false, error: '参数不完整' });
     }
+    // Auto-create user account for new investor
+    const investorName = d.investorName.trim();
+    const { rows: existingUser } = await db.query('SELECT username FROM users WHERE name = $1', [investorName]);
+    if (existingUser.length === 0) {
+      // Generate pinyin username
+      let pinyin = '';
+      for (const ch of investorName) {
+        if (/[\u4e00-\u9fff]/.test(ch)) {
+          const map = { '张':'zhang','李':'li','王':'wang','赵':'zhao','刘':'liu','陈':'chen','杨':'yang','黄':'huang','周':'zhou','吴':'wu','徐':'xu','孙':'sun','胡':'hu','朱':'zhu','高':'gao','林':'lin','何':'he','郭':'guo','马':'ma','罗':'luo','梁':'liang','宋':'song','郑':'zheng','谢':'xie','韩':'han','唐':'tang','冯':'feng','于':'yu','董':'dong','萧':'xiao','程':'cheng','曹':'cao','袁':'yuan','邓':'deng','许':'xu','傅':'fu','沈':'shen','曾':'zeng','彭':'peng','吕':'lv','苏':'su','卢':'lu','蒋':'jiang','蔡':'cai','贾':'jia','丁':'ding','魏':'wei','薛':'xue','叶':'ye','阎':'yan','余':'yu','潘':'pan','杜':'du','戴':'dai','夏':'xia','钟':'zhong','汪':'wang','田':'tian','任':'ren','姜':'jiang','范':'fan','方':'fang','石':'shi','姚':'yao','谭':'tan','廖':'liao','邹':'zou','熊':'xiong','金':'jin','陆':'lu','郝':'hao','孔':'kong','白':'bai','崔':'cui','康':'kang','毛':'mao','邱':'qiu','秦':'qin','江':'jiang','史':'shi','顾':'gu','侯':'hou','邵':'shao','孟':'meng','龙':'long','万':'wan','段':'duan','雷':'lei','钱':'qian','汤':'tang','尹':'yin','黎':'li','易':'yi','常':'chang','武':'wu','乔':'qiao','贺':'he','赖':'lai','龚':'gong','文':'wen' };
+          pinyin += map[ch] || ch;
+        } else { pinyin += ch.toLowerCase(); }
+      }
+      if (pinyin) {
+        let username = pinyin;
+        let suffix = 1;
+        while (true) {
+          const { rows: dup } = await db.query('SELECT username FROM users WHERE username = $1', [username]);
+          if (dup.length === 0) break;
+          username = pinyin + suffix;
+          suffix++;
+        }
+        const bcrypt = require('bcryptjs');
+        const hash = bcrypt.hashSync('Initial', 10);
+        await db.query(
+          'INSERT INTO users (username, password_hash, role, name) VALUES ($1,$2,$3,$4)',
+          [username, hash, 'investor', investorName]
+        );
+        console.log(`✓ Auto-created user: ${username} (${investorName})`);
+      }
+    }
     const { rows } = await db.query(
       `INSERT INTO investments (investor_name, investment_date, maturity_date, amount, rate, reinvest_type, commission, notes, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
