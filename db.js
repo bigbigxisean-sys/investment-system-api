@@ -74,7 +74,7 @@ async function initDb() {
 
   // Create tables
   const serialType = db.mode === 'postgres' ? 'SERIAL' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
-  db.query(`CREATE TABLE IF NOT EXISTS investments (
+  await db.query(`CREATE TABLE IF NOT EXISTS investments (
     id ${serialType},
     investor_name TEXT NOT NULL,
     investment_date TEXT NOT NULL,
@@ -89,7 +89,12 @@ async function initDb() {
     created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
-  db.query(`CREATE TABLE IF NOT EXISTS returns_tbl (
+  // Add primary key for postgres (SERIAL doesn't auto-create PK)
+  if (db.mode === 'postgres') {
+    try { await db.query('ALTER TABLE investments ADD PRIMARY KEY (id)'); } catch(e) {}
+  }
+
+  await db.query(`CREATE TABLE IF NOT EXISTS returns_tbl (
     id ${db.mode === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
     invest_id INTEGER NOT NULL REFERENCES investments(id),
     date TEXT NOT NULL,
@@ -99,7 +104,7 @@ async function initDb() {
     created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
-  db.query(`CREATE TABLE IF NOT EXISTS users (
+  await db.query(`CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'user',
@@ -109,13 +114,8 @@ async function initDb() {
     created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
-  // Add primary key for postgres which lacks it on investments
-  if (db.mode === 'postgres') {
-    try { db.query('ALTER TABLE investments ADD PRIMARY KEY (id)'); } catch(e) {}
-  }
-
   // Seed users
-  const { rows } = db.query('SELECT COUNT(*) as cnt FROM users');
+  const { rows } = await db.query('SELECT COUNT(*) as cnt FROM users');
   const count = db.mode === 'postgres' ? parseInt(rows[0].cnt) : rows[0].cnt;
   if (count === 0) {
     const users = [
@@ -125,7 +125,7 @@ async function initDb() {
       ['wangxi', bcrypt.hashSync('initial', 10), 'investor', '王习', 0],
     ];
     for (const [u, p, r, n, v] of users) {
-      db.query(
+      await db.query(
         'INSERT INTO users (username, password_hash, role, name, view_all) VALUES ($1,$2,$3,$4,$5)',
         [u, p, r, n, v]
       );
