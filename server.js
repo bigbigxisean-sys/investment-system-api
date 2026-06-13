@@ -14,8 +14,41 @@ const invRoutes = require('./routes/investments');
 app.use('/api/auth', authRoutes);
 app.use('/api/investments', invRoutes);
 
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
+});
+
+// Debug: check DB status and reseed if needed
+app.post('/api/debug/reseed', async (req, res) => {
+  try {
+    const { db, initDb } = require('./db');
+    // Re-initialize (recreates tables + seeds)
+    await initDb();
+    res.json({ ok: true, message: 'Database re-initialized and users seeded' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Debug: check DB status
+app.get('/api/debug/status', async (req, res) => {
+  try {
+    const { db } = require('./db');
+    const mode = db.mode || 'unknown';
+    let userCount = 0, invCount = 0, retCount = 0;
+    try {
+      const { rows: u } = await db.query('SELECT COUNT(*) as cnt FROM users');
+      userCount = u[0].cnt;
+    } catch(e) { /* table not exist */ }
+    try {
+      const { rows: i } = await db.query('SELECT COUNT(*) as cnt FROM investments');
+      invCount = i[0].cnt;
+    } catch(e) { /* table not exist */ }
+    res.json({ ok: true, mode, dbUrl: !!process.env.DATABASE_URL, userCount: Number(userCount), invCount: Number(invCount) });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 app.use((err, req, res, next) => {
