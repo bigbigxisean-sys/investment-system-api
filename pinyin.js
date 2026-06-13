@@ -48,6 +48,8 @@ const MAP = {
   '子': 'zi', '恒': 'heng', '哲': 'zhe', '远': 'yuan', '希': 'xi',
   '光': 'guang', '成': 'cheng', '东': 'dong', '南': 'nan', '西': 'xi',
   '北': 'bei', '家': 'jia', '世': 'shi', '长': 'chang',
+  '向': 'xiang', '丹': 'dan', '萌': 'meng', '琪': 'qi', '璇': 'xuan',
+  '亮': 'liang', '乐': 'le',
   '树': 'shu', '焕': 'huan', '炳': 'bing', '火': 'huo',
   '三': 'san', '四': 'si', '五': 'wu', '六': 'liu', '七': 'qi',
   '八': 'ba', '九': 'jiu', '十': 'shi', '百': 'bai', '千': 'qian',
