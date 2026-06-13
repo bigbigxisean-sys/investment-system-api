@@ -1,0 +1,23 @@
+databases:
+- databaseName: investments
+  name: investment-db
+  plan: free
+  postgresMajorVersion: 16
+services:
+- buildCommand: npm install
+  env: node
+  envVars:
+  - generateValue: true
+    key: JWT_SECRET
+  - key: ADMIN_USERNAME
+    value: admin
+  - key: ADMIN_PASSWORD
+    value: admin123
+  - fromDatabase:
+      name: investment-db
+      property: connectionString
+    key: DATABASE_URL
+  healthCheckPath: /api/health
+  name: investment-system-api
+  startCommand: node server.js
+  type: web
