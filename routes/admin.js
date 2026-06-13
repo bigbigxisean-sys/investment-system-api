@@ -6,7 +6,7 @@ const { nameToPinyin } = require('../pinyin');
 
 const router = Router();
 const JWT_SECRET=process.env.JWT_SECRET || 'investment-system-jwt-secret';
-const DEFAULT_PASSWORD='***';
+const DEFAULT_PASSWORD='Initial';
 
 function requireAdmin(req, res, next) {
   const auth = (req.headers.authorization || '').replace('Bearer ', '');
