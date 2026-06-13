@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
       }
       returns = retRows.map(retCamel);
     }
-    res.json({ ok: true, investments, returns });
+    res.json({ ok: true, data: investments, returns });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -157,7 +157,7 @@ router.get('/returns/list', async (req, res) => {
       ({ rows } = await db.query(
         'SELECT r.*, i.investor_name FROM returns_tbl r JOIN investments i ON r.invest_id = i.id ORDER BY r.date DESC'));
     }
-    res.json({ ok: true, returns: rows.map(r => ({ ...retCamel(r), investorName: r.investor_name })) });
+    res.json({ ok: true, data: rows.map(r => ({ ...retCamel(r), investorName: r.investor_name })) });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

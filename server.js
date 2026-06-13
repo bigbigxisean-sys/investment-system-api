@@ -10,9 +10,11 @@ app.use(express.json({ limit: '10mb' }));
 // Routes
 const authRoutes = require('./routes/auth');
 const invRoutes = require('./routes/investments');
+const adminRoutes = require('./routes/admin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/investments', invRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

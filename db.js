@@ -53,7 +53,9 @@ async function initDb() {
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'user',
     name TEXT,
-    view_all INTEGER DEFAULT 0
+    view_all INTEGER DEFAULT 0,
+    blocked INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   const { rows } = db.query('SELECT COUNT(*) as cnt FROM users');

@@ -16,6 +16,9 @@ router.post('/login', async (req, res) => {
     if (rows.length === 0 || !bcrypt.compareSync(password, rows[0].password_hash)) {
       return res.json({ ok: false, error: '用户名或密码错误' });
     }
+    if (rows[0].blocked) {
+      return res.json({ ok: false, error: '该账号已被锁定，请联系管理员' });
+    }
     const user = rows[0];
     const token = jwt.sign(
       { username: user.username, role: user.role, name: user.name },
