@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
           suffix++;
         }
         const bcrypt = require('bcryptjs');
-        const hash = bcrypt.hashSync('Initial', 10);
+        const hash = bcrypt.hashSync('initial', 10);
         await db.query(
           'INSERT INTO users (username, password_hash, role, name) VALUES ($1,$2,$3,$4)',
           [username, hash, 'investor', investorName]
