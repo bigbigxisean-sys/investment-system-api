@@ -172,6 +172,7 @@ async function initDb() {
     // Add missing columns
     try { await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked INTEGER DEFAULT 0'); } catch(e) {}
     try { await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS view_all INTEGER DEFAULT 0'); } catch(e) {}
+    try { await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS')"); } catch(e) {}
   }
 
   // Seed users
