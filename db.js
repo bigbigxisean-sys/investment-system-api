@@ -116,7 +116,44 @@ async function initDb() {
 
   // === Migration: adapt old schema to new ===
   if (db.mode === 'postgres') {
-    // Check if old schema (column named `password`)
+    // Detect old investments schema (camelCase columns)
+    try {
+      const { rows: chk } = await db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name='investments' AND column_name='investorName'"
+      );
+      if (chk.length > 0) {
+        // Old schema: drop and recreate investments table with new column names
+        // First, drop returns_tbl (has FK dependency)
+        await db.query('DROP TABLE IF EXISTS returns_tbl CASCADE');
+        await db.query('DROP TABLE IF EXISTS investments CASCADE');
+        await db.query(`CREATE TABLE investments (
+          id SERIAL PRIMARY KEY,
+          investor_name TEXT NOT NULL,
+          investment_date TEXT NOT NULL,
+          maturity_date TEXT NOT NULL,
+          amount REAL NOT NULL,
+          rate REAL DEFAULT 12,
+          reinvest_type TEXT DEFAULT 'none',
+          commission REAL DEFAULT 0,
+          notes TEXT DEFAULT '',
+          status TEXT DEFAULT 'active',
+          redeemed_date TEXT,
+          created_at TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS')
+        )`);
+        await db.query(`CREATE TABLE returns_tbl (
+          id SERIAL PRIMARY KEY,
+          invest_id INTEGER NOT NULL REFERENCES investments(id),
+          date TEXT NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('interest_earned','commission')),
+          amount REAL NOT NULL,
+          note TEXT DEFAULT '',
+          created_at TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS')
+        )`);
+        console.log('✓ Migrated: investments + returns_tbl schema');
+      }
+    } catch(e) { /* tables may not exist */ }
+
+    // Detect old users schema (column named `password`)
     try {
       const { rows: chk } = await db.query(
         "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='password'"
