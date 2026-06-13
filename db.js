@@ -114,6 +114,29 @@ async function initDb() {
     created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
+  // === Migration: adapt old schema to new ===
+  if (db.mode === 'postgres') {
+    // Check if old schema (column named `password`)
+    try {
+      const { rows: chk } = await db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='password'"
+      );
+      if (chk.length > 0) {
+        // Old schema: migrate plain text passwords to bcrypt hashes
+        const { rows: oldUsers } = await db.query('SELECT username, password FROM users');
+        for (const u of oldUsers) {
+          const hash = bcrypt.hashSync(u.password, 10);
+          await db.query('UPDATE users SET password = $1 WHERE username = $2', [hash, u.username]);
+        }
+        await db.query('ALTER TABLE users RENAME COLUMN password TO password_hash');
+        console.log('✓ Migrated: password → password_hash (bcrypt)');
+      }
+    } catch(e) { /* table may not exist yet */ }
+    // Add missing columns
+    try { await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked INTEGER DEFAULT 0'); } catch(e) {}
+    try { await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS view_all INTEGER DEFAULT 0'); } catch(e) {}
+  }
+
   // Seed users
   const { rows } = await db.query('SELECT COUNT(*) as cnt FROM users');
   const count = db.mode === 'postgres' ? parseInt(rows[0].cnt) : rows[0].cnt;
