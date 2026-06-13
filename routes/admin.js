@@ -5,9 +5,8 @@ const jwt = require('jsonwebtoken');
 const { nameToPinyin } = require('../pinyin');
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'investment-system-jwt-secret';
-
-const DEFAULT_PASSWORD = 'initial';
+const JWT_SECRET=process.env.JWT_SECRET || 'investment-system-jwt-secret';
+const DEFAULT_PASSWORD='***';
 
 function requireAdmin(req, res, next) {
   const auth = (req.headers.authorization || '').replace('Bearer ', '');
@@ -24,9 +23,9 @@ function requireAdmin(req, res, next) {
 router.use(requireAdmin);
 
 // GET /api/admin/users - list all users
-router.get('/users', (req, res) => {
+router.get('/users', async (req, res) => {
   try {
-    const { rows } = db.query(
+    const { rows } = await db.query(
       'SELECT username, role, name, view_all, blocked, created_at FROM users ORDER BY created_at DESC'
     );
     res.json({ ok: true, users: rows.map(u => ({
@@ -40,21 +39,19 @@ router.get('/users', (req, res) => {
 });
 
 // POST /api/admin/users - create user (name → auto pinyin username)
-router.post('/users', (req, res) => {
+router.post('/users', async (req, res) => {
   try {
     const { name, role, viewAll } = req.body;
     if (!name || !name.trim()) return res.json({ ok: false, error: '请输入姓名' });
 
     const userName = name.trim();
-    // Generate pinyin username
     let baseUsername = nameToPinyin(userName);
     if (!baseUsername) return res.json({ ok: false, error: '无法生成用户名' });
 
-    // Check for duplicates and append number if needed
     let username = baseUsername;
     let suffix = 1;
     while (true) {
-      const existing = db.query('SELECT username FROM users WHERE username = $1', [username]);
+      const existing = await db.query('SELECT username FROM users WHERE username = $1', [username]);
       if (existing.rows.length === 0) break;
       username = baseUsername + suffix;
       suffix++;
@@ -64,21 +61,14 @@ router.post('/users', (req, res) => {
     const userRole = role || 'investor';
     const ua = viewAll !== undefined ? (viewAll ? 1 : 0) : 0;
 
-    db.query(
+    await db.query(
       'INSERT INTO users (username, password_hash, role, name, view_all) VALUES ($1,$2,$3,$4,$5)',
       [username, hash, userRole, userName, ua]
     );
 
     res.json({
       ok: true,
-      user: {
-        username,
-        name: userName,
-        role: userRole,
-        viewAll: !!ua,
-        blocked: false,
-        initialPassword: DEFAULT_PASSWORD
-      }
+      user: { username, name: userName, role: userRole, viewAll: !!ua, blocked: false, initialPassword: DEFAULT_PASSWORD }
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -86,20 +76,14 @@ router.post('/users', (req, res) => {
 });
 
 // PUT /api/admin/users/:username - update user (password, role, block, name)
-router.put('/users/:username', (req, res) => {
+router.put('/users/:username', async (req, res) => {
   try {
     const { username } = req.params;
     const { password, role, name, viewAll, blocked } = req.body;
 
-    const existing = db.query('SELECT * FROM users WHERE username = $1', [username]);
+    const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
     if (existing.rows.length === 0) return res.json({ ok: false, error: '用户不存在' });
 
-    // Cannot modify admin itself via this endpoint (safety)
-    if (username === 'admin' && req.admin.username !== 'admin') {
-      return res.json({ ok: false, error: '无权修改管理员账号' });
-    }
-
-    // Build dynamic update
     const updates = [];
     const params = [];
 
@@ -127,7 +111,7 @@ router.put('/users/:username', (req, res) => {
     if (updates.length === 0) return res.json({ ok: false, error: '没有要更新的字段' });
 
     params.push(username);
-    db.query(
+    await db.query(
       'UPDATE users SET ' + updates.join(', ') + ' WHERE username = $' + (params.length),
       params
     );
@@ -139,15 +123,15 @@ router.put('/users/:username', (req, res) => {
 });
 
 // DELETE /api/admin/users/:username
-router.delete('/users/:username', (req, res) => {
+router.delete('/users/:username', async (req, res) => {
   try {
     const { username } = req.params;
     if (username === 'admin') return res.json({ ok: false, error: '不能删除管理员账号' });
 
-    const existing = db.query('SELECT * FROM users WHERE username = $1', [username]);
+    const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
     if (existing.rows.length === 0) return res.json({ ok: false, error: '用户不存在' });
 
-    db.query('DELETE FROM users WHERE username = $1', [username]);
+    await db.query('DELETE FROM users WHERE username = $1', [username]);
     res.json({ ok: true, message: `用户 ${username} 已删除` });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
