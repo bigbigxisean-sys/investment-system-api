@@ -1,30 +1,81 @@
+const { Pool } = require('pg');
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'data.db');
-console.log('✓ Database: SQLite at', dbPath);
-const sqlite = new Database(dbPath);
-sqlite.pragma('journal_mode = WAL');
+const DATABASE_URL=process.env.DATABASE_URL;
 
-function query(sql, params) {
-  const isSelect = sql.trim().toUpperCase().startsWith('SELECT') ||
-                   sql.trim().toUpperCase().startsWith('RETURNING');
-  const converted = sql.replace(/\$(\d+)/g, '?');
-  if (isSelect) {
-    const rows = sqlite.prepare(converted).all(...(params || []));
-    return { rows, rowCount: rows.length };
-  } else {
-    const info = sqlite.prepare(converted).run(...(params || []));
-    return { rows: [{ id: info.lastInsertRowid }], rowCount: info.changes };
-  }
+let db, mode;
+
+if (DATABASE_URL) {
+  // PostgreSQL mode (Neon)
+  mode = 'postgres';
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 5,
+    connectionTimeoutMillis: 10000,
+  });
+  const query = async (sql, params) => {
+    const result = await pool.query(sql, params);
+    return { rows: result.rows, rowCount: result.rowCount };
+  };
+  db = { pool, query, mode: 'postgres' };
+  console.log('✓ Database: PostgreSQL (Neon)');
+} else {
+  // SQLite fallback
+  mode = 'sqlite';
+  const dbPath = process.env.DB_PATH || path.join(__dirname, 'data.db');
+  console.log('⚠ No DATABASE_URL, using SQLite:', dbPath);
+  const sqlite = new Database(dbPath);
+  sqlite.pragma('journal_mode = WAL');
+  const query = (sql, params) => {
+    const isSelect = sql.trim().toUpperCase().startsWith('SELECT') ||
+                     sql.trim().toUpperCase().startsWith('RETURNING');
+    const converted = sql.replace(/\$(\d+)/g, '?');
+    if (isSelect) {
+      const rows = sqlite.prepare(converted).all(...(params || []));
+      return { rows, rowCount: rows.length };
+    } else {
+      const info = sqlite.prepare(converted).run(...(params || []));
+      return { rows: [{ id: info.lastInsertRowid }], rowCount: info.changes };
+    }
+  };
+  db = { sqlite, query, mode: 'sqlite' };
 }
 
-const db = { sqlite, query, mode: 'sqlite' };
-
 async function initDb() {
+  // Test PostgreSQL connection if applicable
+  if (db.mode === 'postgres') {
+    try {
+      await db.query('SELECT 1');
+    } catch (e) {
+      console.warn('⚠ PostgreSQL connection failed:', e.message);
+      console.warn('  Falling back to SQLite');
+      mode = 'sqlite';
+      const dbPath = process.env.DB_PATH || path.join(__dirname, 'data.db');
+      const sqlite = new Database(dbPath);
+      sqlite.pragma('journal_mode = WAL');
+      const query = (sql, params) => {
+        const isSelect = sql.trim().toUpperCase().startsWith('SELECT') ||
+                         sql.trim().toUpperCase().startsWith('RETURNING');
+        const converted = sql.replace(/\$(\d+)/g, '?');
+        if (isSelect) {
+          const rows = sqlite.prepare(converted).all(...(params || []));
+          return { rows, rowCount: rows.length };
+        } else {
+          const info = sqlite.prepare(converted).run(...(params || []));
+          return { rows: [{ id: info.lastInsertRowid }], rowCount: info.changes };
+        }
+      };
+      db = { sqlite, query, mode: 'sqlite' };
+    }
+  }
+
+  // Create tables
+  const serialType = db.mode === 'postgres' ? 'SERIAL' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
   db.query(`CREATE TABLE IF NOT EXISTS investments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id ${serialType},
     investor_name TEXT NOT NULL,
     investment_date TEXT NOT NULL,
     maturity_date TEXT NOT NULL,
@@ -35,17 +86,17 @@ async function initDb() {
     notes TEXT DEFAULT '',
     status TEXT DEFAULT 'active',
     redeemed_date TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
   db.query(`CREATE TABLE IF NOT EXISTS returns_tbl (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id ${db.mode === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
     invest_id INTEGER NOT NULL REFERENCES investments(id),
     date TEXT NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('interest_earned','commission')),
     amount REAL NOT NULL,
     note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
   db.query(`CREATE TABLE IF NOT EXISTS users (
@@ -55,11 +106,17 @@ async function initDb() {
     name TEXT,
     view_all INTEGER DEFAULT 0,
     blocked INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT ${db.mode === 'postgres' ? "to_char(now(), 'YYYY-MM-DD HH24:MI:SS')" : "(datetime('now'))"}
   )`);
 
+  // Add primary key for postgres which lacks it on investments
+  if (db.mode === 'postgres') {
+    try { db.query('ALTER TABLE investments ADD PRIMARY KEY (id)'); } catch(e) {}
+  }
+
+  // Seed users
   const { rows } = db.query('SELECT COUNT(*) as cnt FROM users');
-  const count = rows[0].cnt;
+  const count = db.mode === 'postgres' ? parseInt(rows[0].cnt) : rows[0].cnt;
   if (count === 0) {
     const users = [
       ['admin', bcrypt.hashSync('admin123', 10), 'admin', '管理员', 1],
@@ -74,8 +131,6 @@ async function initDb() {
       );
     }
     console.log('✓ Default users seeded');
-  } else {
-    db.query("UPDATE users SET name = '王习' WHERE username = 'wangxi' AND (name IS NULL OR name != '王习')");
   }
 }
 
