@@ -1,8 +1,14 @@
 const { Pool } = require('pg');
 
-const DATABASE_URL = "postgresql://neondb_owner:npg_Qi82VLNtyKPv@ep-hidden-poetry-airdz14o.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
+// DATABASE_URL is set in Render.com Environment Variables
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const pool = new Pool({ connectionString: DATABASE_URL });
+if (!DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL environment variable is not set');
+  process.exit(1);
+}
+
+const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 async function initDb() {
   const client = await pool.connect();
