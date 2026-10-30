@@ -51,6 +51,8 @@ const MAP = {
   '向': 'xiang', '丹': 'dan', '萌': 'meng', '琪': 'qi', '璇': 'xuan',
   '亮': 'liang', '乐': 'le',
   '树': 'shu', '焕': 'huan', '炳': 'bing', '火': 'huo',
+  '乔': 'qiao', '以': 'yi', '毓': 'yu', '举': 'ju', '詹': 'zhan',
+  '洁': 'jie', '齐': 'qi', '容': 'rong', '宙': 'zhou', '妈': 'ma',
   '三': 'san', '四': 'si', '五': 'wu', '六': 'liu', '七': 'qi',
   '八': 'ba', '九': 'jiu', '十': 'shi', '百': 'bai', '千': 'qian',
   '阳': 'yang', '阴': 'yin', '日': 'ri', '月': 'yue', '星': 'xing',
